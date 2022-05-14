@@ -58,6 +58,7 @@ TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
 NodeContainer c;
 double interval = 0.1;
 uint32_t helloSendAfter = 5;
+uint32_t numPair = 50;
 
 uint32_t gridSize = 1000;
 uint32_t BOARD_ROWS = 4;
@@ -189,7 +190,7 @@ private:
 
     std::stack<uint64_t> packetsScheduled;
     std::stack<std::string> uidsPacketReceived;
-    std::vector<int> findNeighbor;
+    std::vector<uint32_t> findNeighbor;
     std::vector<PayLoadConstructor> bufferPackets;
 
 public:
@@ -216,13 +217,13 @@ public:
     int getPacketsSent() { return packetsSent; }
     double getBytesReceived() { return bytesReceived; }
     int getPacketsReceived() { return packetsReceived; }
-    int getFindNeighbor(int value) { return findNeighbor[value]; }
+    int getFindNeighbor(uint32_t value) { return findNeighbor[value]; }
 
     void setBytesSent(double value) { bytesSent = value; }
     void setPacketsSent(double value) { packetsSent = value; }
     void setBytesReceived(double value) { bytesReceived = value; }
     void setPacketsReceived(double value) { packetsReceived = value; }
-    void setFindNeighbor(int value) { findNeighbor[value] = helloSendAfter; }
+    void setFindNeighbor(uint32_t value) { findNeighbor[value] = helloSendAfter; }
 
     void increaseBytesSent() { bytesSent += packetSize; }
     void increasePacketsSent(double value) { packetsSent += value; }
@@ -455,11 +456,11 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
     uint32_t ttl = payload.getTtl();
     int temp_distance, validation;
 
-    if (UID == 43)
-        for (int i = 0; i < 3; i++)
-            std::cout << select_row[i] << "," << select_col[i] << std::endl;
+    // if (UID == 43)
+    //     for (int i = 0; i < 3; i++)
+    //         std::cout << select_row[i] << "," << select_col[i] << std::endl;
 
-    for (int node = 0; node < 4000; node++)
+    for (uint32_t node = 0; node < 4000; node++)
     {
         if (currentNode->getFindNeighbor(node) == 0)
             continue;
@@ -467,13 +468,6 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
         Ptr<Ipv4> ipv4 = c.Get(node)->GetObject<Ipv4>();
         Ipv4InterfaceAddress iaddr = ipv4->GetAddress(1, 0);
         Ipv4Address ipSender = iaddr.GetLocal();
-
-        // if (payload.getDestinationAddress() == ipSender)
-        // {
-        //     nextHopAddress[0] = ipSender;
-        //     check[0] = true;
-        //     break;
-        // }
 
         Ptr<MobilityModel> node_mob = c.Get(node)->GetObject<MobilityModel>();
         NodeHandler *neighborNode = &nodeHandlerArray[node];
@@ -489,11 +483,18 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
         temp_distance = dist(node_X, node_Y, dst_X, dst_Y);
         validation = dist(node_X, node_Y, src_X, src_Y);
 
+        if (payload.getDestinationAddress() == ipSender && validation <= 560)
+        {
+            nextHopAddress[0] = ipSender;
+            check[0] = true;
+            break;
+        }
+
         for (int i = 0; i < 3; i++)
         {
             if (select_row[i] == index_row[2] && select_col[i] == index_col[2])
             {
-                if (temp_distance < distance[i] && validation <= 580 && neighborNode->searchInStack(UID) == false)
+                if (temp_distance < distance[i] && validation <= 560 && neighborNode->searchInStack(UID) == false)
                 {
                     nextHopAddress[i] = ipSender;
                     distance[i] = temp_distance;
@@ -568,7 +569,7 @@ void ReceivePacket(Ptr<Socket> socket)
         payload.fromPacket(packet);
 
         Ipv4Address nextHopAddress = payload.getNextHopAddress();
-        int neighborId = payload.getNeighborId();
+        uint32_t neighborId = payload.getNeighborId();
         uint32_t UID = payload.getUid();
 
         double time = Simulator::Now().GetSeconds();
@@ -594,17 +595,16 @@ void ReceivePacket(Ptr<Socket> socket)
         // receive the packet
         if (payload.getType() == HELLO)
         {
-            // bool exist = false;
-            bool exist = true;
+            bool exist = false;
 
-            // for (std::vector<std::string>::iterator iter = existNode[(int)time].begin(); iter != existNode[(int)time].end(); iter++)
-            // {
-            //     if ((int)socket->GetNode()->GetId() == stoi(*iter))
-            //     {
-            //         exist = true; // check node exist
-            //         break;
-            //     }
-            // }
+            for (std::vector<std::string>::iterator iter = existNode[(int)time].begin(); iter != existNode[(int)time].end(); iter++)
+            {
+                if ((int)socket->GetNode()->GetId() == stoi(*iter))
+                {
+                    exist = true; // check node exist
+                    break;
+                }
+            }
 
             if (ipSender == nextHopAddress && exist == true)
             {
@@ -643,12 +643,12 @@ int main(int argc, char *argv[])
     helloSendAfter = 4;
 
     // double simulationTime = 569.00;
-    double simulationTime = 20.00;
-    double sendUntil = 14.00;
+    double simulationTime = 40.00;
+    double sendUntil = 30.00;
     double warmingTime = 5.00;
     uint32_t seed = 91;
 
-    uint32_t numPair = 50;
+    numPair = 50;
     uint32_t numNodes = 3214;
     uint32_t sendAfter = 1;
     uint32_t sinkNode;
@@ -685,6 +685,12 @@ int main(int argc, char *argv[])
         std::istream_iterator<std::string> begin(ss);
         std::istream_iterator<std::string> end;
         std::vector<std::string> tokens(begin, end);
+
+        for (uint32_t i = 0; i < numPair * 2; ++i)
+        {
+            tokens.push_back(std::to_string(i));
+        }
+
         existNode.push_back(tokens);
     }
     file.close();
