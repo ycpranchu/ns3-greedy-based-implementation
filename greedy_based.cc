@@ -455,15 +455,16 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
     uint32_t ttl = payload.getTtl();
     int temp_distance, validation;
 
-    double time = Simulator::Now().GetSeconds();
+    // double time = Simulator::Now().GetSeconds();
 
     // if (UID == 43)
     //     for (int i = 0; i < 3; i++)
     //         std::cout << select_row[i] << "," << select_col[i] << std::endl;
 
-    for (std::vector<std::string>::iterator iter = existNode[(int)time].begin(); iter != existNode[(int)time].end(); iter++)
+    // for (std::vector<std::string>::iterator iter = existNode[(int)time].begin(); iter != existNode[(int)time].end(); iter++)
+    for (uint32_t node = 0; node < 4000; node++)
     {
-        uint32_t node = stoi(*iter);
+        // uint32_t node = stoi(*iter);
 
         if (currentNode->getFindNeighbor(node) == 0)
             continue;
@@ -486,7 +487,7 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
         temp_distance = dist(node_X, node_Y, dst_X, dst_Y);
         validation = dist(node_X, node_Y, src_X, src_Y);
 
-        if (payload.getDestinationAddress() == ipSender && validation <= 360)
+        if (payload.getDestinationAddress() == ipSender && validation <= 280)
         {
             nextHopAddress[0] = ipSender;
             check[0] = true;
@@ -500,19 +501,19 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
         {
             if (select_row[i] == index_row[2] && select_col[i] == index_col[2])
             {
-                if (temp_distance < distance[i] && validation <= 360 && neighborNode->searchInStack(UID) == false)
+                if (temp_distance < distance[i] && validation <= 280 && neighborNode->searchInStack(UID) == false)
                 {
                     nextHopAddress[i] = ipSender;
                     distance[i] = temp_distance;
                     check[i] = true;
 
-                    // if (UID == 43)
-                    // {
-                    //     std::cout << "ipSender : " << ipSender << "\t" << node << "\tdistance :" << temp_distance << "\tvalidation :" << validation << "\tgrid : ";
-                    //     for (int i = 0; i < 3; i++)
-                    //         std::cout << index_row[i] << "," << index_col[i] << "\t";
-                    //     std::cout << std::endl;
-                    // }
+                    if ((int)socket->GetNode()->GetId() == 100)
+                    {
+                        std::cout << "ipSender : " << ipSender << "\t" << node << "\tdistance :" << temp_distance << "\tvalidation :" << validation << "\tgrid : ";
+                        for (int i = 0; i < 3; i++)
+                            std::cout << index_row[i] << "," << index_col[i] << "\t";
+                        std::cout << std::endl;
+                    }
                 }
             }
         }
@@ -530,16 +531,14 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
             if (currentNode->searchInStack(UID) == false)
                 currentNode->pushInStack(UID);
 
-            std::cout << Simulator::Now().GetSeconds() << "\t" << currentNode->getNodeID() << "\tget nextHopAddress: " << nextHopAddress[i] << std::endl;
+            if ((int)socket->GetNode()->GetId() == 100)
+                std::cout << Simulator::Now().GetSeconds() << "\t" << currentNode->getNodeID() << "\tget nextHopAddress: " << nextHopAddress[i] << std::endl;
 
             Ptr<Socket> new_socket = Socket::CreateSocket(c.Get(socket->GetNode()->GetId()), tid);
             InetSocketAddress remote = InetSocketAddress(nextHopAddress[i], 80);
             new_socket->Connect(remote);
 
-            Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-            double randomPause = x->GetValue(0, 0.01);
-            Simulator::Schedule(Seconds(randomPause), &GenerateTraffic, new_socket, packet, UID, ttl);
-
+            Simulator::Schedule(Seconds(0), &GenerateTraffic, new_socket, packet, UID, ttl);
             sent = true;
             break;
         }
@@ -547,33 +546,9 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
 
     if (sent == false)
     {
-        bool exist = false;
-
-        for (std::vector<std::string>::iterator iter = existNode[(int)time + 1].begin(); iter != existNode[(int)time + 1].end(); iter++)
-        {
-            if ((int)socket->GetNode()->GetId() == stoi(*iter))
-            {
-                exist = true; // check node exist
-                break;
-            }
-        }
-
-        if (exist == true)
-        {
-            Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-            double randomPause = x->GetValue(0, 0.01);
-            Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
-        }
-        else
-        {
-            InetSocketAddress remote = InetSocketAddress(Ipv4Address("255.255.255.255"), 80);
-            socket->Connect(remote);
-            socket->SetAllowBroadcast(true);
-
-            Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-            double randomPause = x->GetValue(0, 0.01);
-            Simulator::Schedule(Seconds(randomPause), &GenerateTraffic, socket, packet, UID, 5);
-        }
+        Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
+        double randomPause = x->GetValue(0, 0.01);
+        Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
     }
 }
 
@@ -639,6 +614,9 @@ void ReceivePacket(Ptr<Socket> socket)
 
             if (ipSender == nextHopAddress && exist == true)
             {
+                if ((int)socket->GetNode()->GetId() == 100)
+                    NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender << "\t" << payload.getNeighborId());
+
                 currentNode->increaseBytesReceived();
                 currentNode->setFindNeighbor(neighborId);
             }
@@ -652,38 +630,16 @@ void ReceivePacket(Ptr<Socket> socket)
                 currentNode->increaseBytesReceived();
                 currentNode->increaseBuffer();
 
-                NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender);
+                if ((int)socket->GetNode()->GetId() == 100)
+                    NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender);
 
-                bool exist = false;
-
-                for (std::vector<std::string>::iterator iter = existNode[(int)time + 1].begin(); iter != existNode[(int)time + 1].end(); iter++)
-                {
-                    if ((int)socket->GetNode()->GetId() == stoi(*iter))
-                    {
-                        exist = true; // check node exist
-                        break;
-                    }
-                }
-
-                if ((dataForPackets[UID].start + (double)TTL >= Simulator::Now().GetSeconds()) && currentNode->checkBufferSize() && exist == true)
+                if ((dataForPackets[UID].start + (double)TTL >= Simulator::Now().GetSeconds()) && currentNode->checkBufferSize())
                 {
                     destinationId = payload.getDestinationId();
                     destinationAddress = payload.getDestinationAddress();
                     currentNode->savePacketsInBuffer(payload);
 
-                    Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-                    double randomPause = x->GetValue(0, 0.01);
-                    Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
-                }
-                else
-                {
-                    InetSocketAddress remote = InetSocketAddress(Ipv4Address("255.255.255.255"), 80);
-                    socket->Connect(remote);
-                    socket->SetAllowBroadcast(true);
-
-                    Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-                    double randomPause = x->GetValue(0, 0.01);
-                    Simulator::Schedule(Seconds(randomPause), &GenerateTraffic, socket, packet, UID, TTL);
+                    Simulator::Schedule(Seconds(0), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
                 }
             }
         }
@@ -693,12 +649,12 @@ void ReceivePacket(Ptr<Socket> socket)
 int main(int argc, char *argv[])
 {
     std::string phyMode("DsssRate11Mbps");
-    double distance = 400;
-    helloSendAfter = 2;
+    double distance = 300;
+    helloSendAfter = 1;
 
     // double simulationTime = 569.00;
-    double simulationTime = 60.00;
-    double sendUntil = 30.00;
+    double simulationTime = 100.00;
+    double sendUntil = 60.00;
     double warmingTime = 5.00;
     uint32_t seed = 91;
 
@@ -713,7 +669,7 @@ int main(int argc, char *argv[])
 
     CommandLine cmd;
     cmd.AddValue("phyMode", "Wifi Phy mode", phyMode);
-    // cmd.AddValue ("distance", "distance (m)", distance);
+    cmd.AddValue ("distance", "distance (m)", distance);
     cmd.AddValue("numPair", "Number of packets generated", numPair);
     cmd.AddValue("numNodes", "Number of nodes", numNodes);
     // cmd.AddValue("sinkNode", "Receiver node number", sinkNode);
@@ -848,32 +804,6 @@ int main(int argc, char *argv[])
 
             Simulator::Schedule(Seconds(t + randomPause), &GenerateTraffic, socket, packet, payload.getUid(), TTL);
         }
-
-        // for (uint32_t i = 0; i < numNodes; i++)
-        // {
-        //     Ipv4InterfaceAddress iaddrSender = c.Get(i)->GetObject<Ipv4>()->GetAddress(1, 0);
-        //     Ipv4Address ipSender = iaddrSender.GetLocal();
-
-        //     Ptr<Socket> socket = Socket::CreateSocket(c.Get(i), tid);
-
-        //     PayLoadConstructor payload = PayLoadConstructor(HELLO);
-        //     payload.setTtl(TTL);
-        //     payload.setUid(0);
-        //     payload.setNextHopAddress(ipSender);
-        //     payload.setNeighborId(i);
-        //     payload.setDestinationAddress(ipSender);
-        //     payload.setDestinationId(i);
-        //     Ptr<Packet> packet = payload.toPacket();
-
-        //     InetSocketAddress remote = InetSocketAddress(Ipv4Address("255.255.255.255"), 80);
-        //     socket->Connect(remote);
-        //     socket->SetAllowBroadcast(true);
-
-        //     Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-        //     double randomPause = x->GetValue(0, 3);
-
-        //     Simulator::Schedule(Seconds(t + randomPause), &GenerateTraffic, socket, packet, payload.getUid(), TTL);
-        // }
     }
 
     for (double t = warmingTime; t < simulationTime - sendUntil; t += sendAfter)
@@ -907,13 +837,15 @@ int main(int argc, char *argv[])
             PacketLogData dataPacket = {false, -1, 0.00, 0};
             dataForPackets.push_back(dataPacket);
 
-            InetSocketAddress remote = InetSocketAddress(Ipv4Address("255.255.255.255"), 80);
-            socket->Connect(remote);
-            socket->SetAllowBroadcast(true);
+            // InetSocketAddress remote = InetSocketAddress(Ipv4Address("255.255.255.255"), 80);
+            // socket->Connect(remote);
+            // socket->SetAllowBroadcast(true);
 
             Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-            double randomPause = x->GetValue(0, 0.01);
+            double randomPause = x->GetValue(0, 0.1);
+
             Simulator::Schedule(Seconds(t + randomPause), &ScheduleNeighbor, socket, packet, currentNode, UID);
+            // Simulator::Schedule(Seconds(t + randomPause), &GenerateTraffic, socket, packet, UID, TTL);
 
             UID += 1;
         }
