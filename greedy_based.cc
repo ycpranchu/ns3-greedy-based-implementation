@@ -56,6 +56,7 @@ std::vector<PacketLogData> dataForPackets;
 std::vector<std::vector<std::string>> existNode;
 TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
 NodeContainer c;
+double distance = 300;
 double interval = 0.1;
 uint32_t helloSendAfter = 5;
 
@@ -343,7 +344,7 @@ float dist(float x1, float y1, float x2, float y2)
     return dist;
 }
 
-static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *currentNode, uint32_t destinationId)
+void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *currentNode, uint32_t destinationId)
 {
     int index_row[3], index_col[3]; // source, destination, neighbor
     int select_row[3] = {-1, -1, -1};
@@ -446,7 +447,7 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
 
     Ipv4Address nextHopAddress[3];
     bool check[3] = {false, false, false};
-    double distance[3] = {100000, 100000, 100000};
+    double rec_distance[3] = {100000, 100000, 100000};
 
     PayLoadConstructor payload = PayLoadConstructor(HELLO);
     payload.fromPacket(packet);
@@ -455,16 +456,11 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
     uint32_t ttl = payload.getTtl();
     int temp_distance, validation;
 
-    // double time = Simulator::Now().GetSeconds();
+    double time = Simulator::Now().GetSeconds();
 
-    // if (UID == 43)
-    //     for (int i = 0; i < 3; i++)
-    //         std::cout << select_row[i] << "," << select_col[i] << std::endl;
-
-    // for (std::vector<std::string>::iterator iter = existNode[(int)time].begin(); iter != existNode[(int)time].end(); iter++)
-    for (uint32_t node = 0; node < 4000; node++)
+    for (std::vector<std::string>::iterator iter = existNode[(int)time].begin(); iter != existNode[(int)time].end(); iter++)
     {
-        // uint32_t node = stoi(*iter);
+        uint32_t node = stoi(*iter);
 
         if (currentNode->getFindNeighbor(node) == 0)
             continue;
@@ -487,7 +483,7 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
         temp_distance = dist(node_X, node_Y, dst_X, dst_Y);
         validation = dist(node_X, node_Y, src_X, src_Y);
 
-        if (payload.getDestinationAddress() == ipSender && validation <= 280)
+        if (payload.getDestinationAddress() == ipSender && validation <= distance - 20)
         {
             nextHopAddress[0] = ipSender;
             check[0] = true;
@@ -501,10 +497,10 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
         {
             if (select_row[i] == index_row[2] && select_col[i] == index_col[2])
             {
-                if (temp_distance < distance[i] && validation <= 280 && neighborNode->searchInStack(UID) == false)
+                if (temp_distance < rec_distance[i] && validation <= distance - 20 && neighborNode->searchInStack(UID) == false)
                 {
                     nextHopAddress[i] = ipSender;
-                    distance[i] = temp_distance;
+                    rec_distance[i] = temp_distance;
                     check[i] = true;
 
                     if ((int)socket->GetNode()->GetId() == 100)
@@ -531,14 +527,15 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
             if (currentNode->searchInStack(UID) == false)
                 currentNode->pushInStack(UID);
 
-            if ((int)socket->GetNode()->GetId() == 100)
-                std::cout << Simulator::Now().GetSeconds() << "\t" << currentNode->getNodeID() << "\tget nextHopAddress: " << nextHopAddress[i] << std::endl;
+            std::cout << Simulator::Now().GetSeconds() << "\t" << currentNode->getNodeID() << "\tget nextHopAddress: " << nextHopAddress[i] << std::endl;
 
             Ptr<Socket> new_socket = Socket::CreateSocket(c.Get(socket->GetNode()->GetId()), tid);
             InetSocketAddress remote = InetSocketAddress(nextHopAddress[i], 80);
             new_socket->Connect(remote);
 
-            Simulator::Schedule(Seconds(0), &GenerateTraffic, new_socket, packet, UID, ttl);
+            Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
+            double randomPause = x->GetValue(0, 0.1);
+            Simulator::Schedule(Seconds(randomPause), &GenerateTraffic, new_socket, packet, UID, ttl);
             sent = true;
             break;
         }
@@ -547,7 +544,7 @@ static void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler
     if (sent == false)
     {
         Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-        double randomPause = x->GetValue(0, 0.01);
+        double randomPause = x->GetValue(0.1, 0.5);
         Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
     }
 }
@@ -614,8 +611,8 @@ void ReceivePacket(Ptr<Socket> socket)
 
             if (ipSender == nextHopAddress && exist == true)
             {
-                if ((int)socket->GetNode()->GetId() == 100)
-                    NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender << "\t" << payload.getNeighborId());
+                // if ((int)socket->GetNode()->GetId() == 100)
+                //     NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender << "\t" << payload.getNeighborId());
 
                 currentNode->increaseBytesReceived();
                 currentNode->setFindNeighbor(neighborId);
@@ -630,8 +627,8 @@ void ReceivePacket(Ptr<Socket> socket)
                 currentNode->increaseBytesReceived();
                 currentNode->increaseBuffer();
 
-                if ((int)socket->GetNode()->GetId() == 100)
-                    NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender);
+                // if ((int)socket->GetNode()->GetId() == 100)
+                NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender);
 
                 if ((dataForPackets[UID].start + (double)TTL >= Simulator::Now().GetSeconds()) && currentNode->checkBufferSize())
                 {
@@ -639,7 +636,9 @@ void ReceivePacket(Ptr<Socket> socket)
                     destinationAddress = payload.getDestinationAddress();
                     currentNode->savePacketsInBuffer(payload);
 
-                    Simulator::Schedule(Seconds(0), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
+                    Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
+                    double randomPause = x->GetValue(0, 0.1);
+                    Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
                 }
             }
         }
@@ -649,18 +648,18 @@ void ReceivePacket(Ptr<Socket> socket)
 int main(int argc, char *argv[])
 {
     std::string phyMode("DsssRate11Mbps");
-    double distance = 300;
+    distance = 400;
     helloSendAfter = 1;
 
     // double simulationTime = 569.00;
     double simulationTime = 100.00;
     double sendUntil = 60.00;
-    double warmingTime = 5.00;
+    double warmingTime = 10.00;
     uint32_t seed = 91;
 
     uint32_t numPair = 50;
     uint32_t numNodes = 3214;
-    uint32_t sendAfter = 1;
+    uint32_t sendAfter = 2;
     uint32_t sinkNode;
     uint32_t sourceNode;
 
@@ -669,7 +668,7 @@ int main(int argc, char *argv[])
 
     CommandLine cmd;
     cmd.AddValue("phyMode", "Wifi Phy mode", phyMode);
-    cmd.AddValue ("distance", "distance (m)", distance);
+    cmd.AddValue("distance", "distance (m)", distance);
     cmd.AddValue("numPair", "Number of packets generated", numPair);
     cmd.AddValue("numNodes", "Number of nodes", numNodes);
     // cmd.AddValue("sinkNode", "Receiver node number", sinkNode);
