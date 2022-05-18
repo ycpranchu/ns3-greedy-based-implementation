@@ -56,7 +56,7 @@ std::vector<PacketLogData> dataForPackets;
 std::vector<std::vector<std::string>> existNode;
 TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
 NodeContainer c;
-double distance = 300;
+double distance;
 double interval = 0.1;
 uint32_t helloSendAfter = 5;
 
@@ -203,7 +203,7 @@ public:
         packetsReceived = 0;
 
         bufferSize = 0;
-        maxBufferSize = 5000000;
+        maxBufferSize = 10000000;
         packetSize = 1024;
 
         for (int i = 0; i < 4000; i++)
@@ -652,18 +652,18 @@ int main(int argc, char *argv[])
     helloSendAfter = 1;
 
     // double simulationTime = 569.00;
-    double simulationTime = 100.00;
-    double sendUntil = 60.00;
+    double simulationTime = 350.00;
+    double sendUntil = 50.00;
     double warmingTime = 10.00;
     uint32_t seed = 91;
 
     uint32_t numPair = 50;
     uint32_t numNodes = 3214;
-    uint32_t sendAfter = 2;
+    uint32_t sendAfter = 10;
     uint32_t sinkNode;
     uint32_t sourceNode;
 
-    uint32_t TTL = 50;
+    uint32_t TTL = 150;
     uint32_t UID = 1;
 
     CommandLine cmd;
@@ -843,7 +843,7 @@ int main(int argc, char *argv[])
             Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
             double randomPause = x->GetValue(0, 0.1);
 
-            Simulator::Schedule(Seconds(t + randomPause), &ScheduleNeighbor, socket, packet, currentNode, UID);
+            Simulator::Schedule(Seconds(t + randomPause), &ScheduleNeighbor, socket, packet, currentNode, sinkNode);
             // Simulator::Schedule(Seconds(t + randomPause), &GenerateTraffic, socket, packet, UID, TTL);
 
             UID += 1;
