@@ -5,7 +5,7 @@
 ### cp greedy_based.cc file into ns-3 scratch folder
 ```
 $ cd
-$ cp greedy_based.cc ns-allinone-3.30.1/ns-3.30.1/scratch/epidemic.cc
+$ cp greedy_based.cc ns-allinone-3.30.1/ns-3.30.1/scratch/greedy_based.cc
 ```
 
 ### move to ns-allinone-3.30.1/ns-3.30.1 folder
