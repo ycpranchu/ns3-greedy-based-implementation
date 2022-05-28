@@ -59,6 +59,7 @@ NodeContainer c;
 double distance;
 double interval = 0.1;
 uint32_t helloSendAfter = 5;
+uint32_t numPair = 150;
 
 uint32_t gridSize = 1000;
 uint32_t BOARD_ROWS = 4;
@@ -363,6 +364,15 @@ void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *curre
     index_row[1] = dst_Y / gridSize;
     index_col[1] = dst_X / gridSize;
 
+    for (int i = 0; i < 2; i++)
+    {
+        if (index_row[i] == 4)
+            index_row[i] = 3;
+
+        if (index_col[i] == 6)
+            index_col[i] = 5;
+    }
+
     for (int i = 0; i < 4; i++)
         if (std::atof(nextHopGrid[index_row[0] * BOARD_COLS + index_col[0]][index_row[1] * BOARD_COLS + index_col[1]][i].c_str()) != -1)
             dst_grid = false;
@@ -490,7 +500,7 @@ void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *curre
             break;
         }
 
-        if (node < 100)
+        if (node < numPair * 2) // never let the fixed nodes to transend the packet
             continue;
 
         for (int i = 0; i < 3; i++)
@@ -651,19 +661,19 @@ int main(int argc, char *argv[])
     distance = 400;
     helloSendAfter = 1;
 
-    // double simulationTime = 569.00;
-    double simulationTime = 350.00;
+    // double simulationTime = 569.00
+    double simulationTime = 100.00;
     double sendUntil = 50.00;
     double warmingTime = 10.00;
     uint32_t seed = 91;
 
-    uint32_t numPair = 50;
+    numPair = 150;
     uint32_t numNodes = 3214;
-    uint32_t sendAfter = 10;
+    uint32_t sendAfter = 1;
     uint32_t sinkNode;
     uint32_t sourceNode;
 
-    uint32_t TTL = 150;
+    uint32_t TTL = 30;
     uint32_t UID = 1;
 
     CommandLine cmd;
@@ -695,6 +705,11 @@ int main(int argc, char *argv[])
         std::istream_iterator<std::string> end;
         std::vector<std::string> tokens(begin, end);
 
+        for (unsigned int i = 0; i < tokens.size(); ++i)
+        {
+            tokens[i] = std::to_string(std::stoi(tokens[i].c_str()) + numPair * 2);
+        }
+
         for (uint32_t i = 0; i < numPair * 2; ++i)
         {
             tokens.push_back(std::to_string(i));
@@ -704,7 +719,7 @@ int main(int argc, char *argv[])
     }
     file.close();
 
-    file.open("/home/ycpin/平日_7-9.txt", std::ios::in);
+    file.open("/home/ycpin/平日_7-9_2.txt", std::ios::in);
     uint32_t count_a = 0, count_b = 0;
 
     while (getline(file, tempstr))
@@ -752,7 +767,7 @@ int main(int argc, char *argv[])
     NetDeviceContainer devices = wifi.Install(wifiPhy, wifiMac, c);
 
     // Import the trace file.
-    Ns2MobilityHelper ns2 = Ns2MobilityHelper("/home/ycpin/mobility_test.tcl");
+    Ns2MobilityHelper ns2 = Ns2MobilityHelper("/home/ycpin/mobility_test_50.tcl");
     ns2.Install(); // configure movements for each node, while reading trace file
 
     InternetStackHelper internet;
