@@ -513,13 +513,13 @@ void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *curre
                     rec_distance[i] = temp_distance;
                     check[i] = true;
 
-                    if ((int)socket->GetNode()->GetId() == 100)
-                    {
-                        std::cout << "ipSender : " << ipSender << "\t" << node << "\tdistance :" << temp_distance << "\tvalidation :" << validation << "\tgrid : ";
-                        for (int i = 0; i < 3; i++)
-                            std::cout << index_row[i] << "," << index_col[i] << "\t";
-                        std::cout << std::endl;
-                    }
+                    // if ((int)socket->GetNode()->GetId() == 100)
+                    // {
+                    //     std::cout << "ipSender : " << ipSender << "\t" << node << "\tdistance :" << temp_distance << "\tvalidation :" << validation << "\tgrid : ";
+                    //     for (int i = 0; i < 3; i++)
+                    //         std::cout << index_row[i] << "," << index_col[i] << "\t";
+                    //     std::cout << std::endl;
+                    // }
                 }
             }
         }
@@ -544,7 +544,7 @@ void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *curre
             new_socket->Connect(remote);
 
             Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-            double randomPause = x->GetValue(0, 0.1);
+            double randomPause = x->GetValue(0, 0.5);
             Simulator::Schedule(Seconds(randomPause), &GenerateTraffic, new_socket, packet, UID, ttl);
             sent = true;
             break;
@@ -554,7 +554,7 @@ void ScheduleNeighbor(Ptr<Socket> socket, Ptr<Packet> packet, NodeHandler *curre
     if (sent == false)
     {
         Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-        double randomPause = x->GetValue(0.1, 0.5);
+        double randomPause = x->GetValue(0.5, 1);
         Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
     }
 }
@@ -621,9 +621,6 @@ void ReceivePacket(Ptr<Socket> socket)
 
             if (ipSender == nextHopAddress && exist == true)
             {
-                // if ((int)socket->GetNode()->GetId() == 100)
-                //     NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender << "\t" << payload.getNeighborId());
-
                 currentNode->increaseBytesReceived();
                 currentNode->setFindNeighbor(neighborId);
             }
@@ -638,7 +635,7 @@ void ReceivePacket(Ptr<Socket> socket)
                 currentNode->increaseBuffer();
 
                 // if ((int)socket->GetNode()->GetId() == 100)
-                NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender);
+                // NS_LOG_UNCOND(time << "s\t" << ipReceiver << "\t" << socket->GetNode()->GetId() << "\tReceived pkt type: " << payload.getType() << "\twith uid: " << UID << "\tfrom: " << ipSender);
 
                 if ((dataForPackets[UID].start + (double)TTL >= Simulator::Now().GetSeconds()) && currentNode->checkBufferSize())
                 {
@@ -647,7 +644,7 @@ void ReceivePacket(Ptr<Socket> socket)
                     currentNode->savePacketsInBuffer(payload);
 
                     Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-                    double randomPause = x->GetValue(0, 0.1);
+                    double randomPause = x->GetValue(0, 0.5);
                     Simulator::Schedule(Seconds(randomPause), &ScheduleNeighbor, socket, packet, currentNode, destinationId);
                 }
             }
@@ -658,18 +655,18 @@ void ReceivePacket(Ptr<Socket> socket)
 int main(int argc, char *argv[])
 {
     std::string phyMode("DsssRate11Mbps");
-    distance = 400;
+    distance = 500;
     helloSendAfter = 1;
 
     // double simulationTime = 569.00
-    double simulationTime = 100.00;
+    double simulationTime = 360.00;
     double sendUntil = 50.00;
     double warmingTime = 10.00;
     uint32_t seed = 91;
 
     numPair = 150;
     uint32_t numNodes = 3214;
-    uint32_t sendAfter = 1;
+    uint32_t sendAfter = 10;
     uint32_t sinkNode;
     uint32_t sourceNode;
 
@@ -697,7 +694,7 @@ int main(int argc, char *argv[])
     std::string tempstr;
     std::ifstream file;
 
-    file.open("/home/ycpin/exist_test.txt", std::ios::in);
+    file.open("/home/ycpin/Dataset/平日_7_9/exist_file/exist_2022-01-04_150_0.txt", std::ios::in);
     while (getline(file, tempstr))
     {
         std::stringstream ss(tempstr);
@@ -719,7 +716,7 @@ int main(int argc, char *argv[])
     }
     file.close();
 
-    file.open("/home/ycpin/平日_7-9_2.txt", std::ios::in);
+    file.open("/home/ycpin/Dataset/Q-table/平日_7-9.txt", std::ios::in);
     uint32_t count_a = 0, count_b = 0;
 
     while (getline(file, tempstr))
@@ -767,7 +764,7 @@ int main(int argc, char *argv[])
     NetDeviceContainer devices = wifi.Install(wifiPhy, wifiMac, c);
 
     // Import the trace file.
-    Ns2MobilityHelper ns2 = Ns2MobilityHelper("/home/ycpin/mobility_test_50.tcl");
+    Ns2MobilityHelper ns2 = Ns2MobilityHelper("/home/ycpin/Dataset/平日_7_9/mobility_file/mobility_2022-01-04_150_0.tcl");
     ns2.Install(); // configure movements for each node, while reading trace file
 
     InternetStackHelper internet;
@@ -856,7 +853,7 @@ int main(int argc, char *argv[])
             // socket->SetAllowBroadcast(true);
 
             Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
-            double randomPause = x->GetValue(0, 0.1);
+            double randomPause = x->GetValue(0, 0.5);
 
             Simulator::Schedule(Seconds(t + randomPause), &ScheduleNeighbor, socket, packet, currentNode, sinkNode);
             // Simulator::Schedule(Seconds(t + randomPause), &GenerateTraffic, socket, packet, UID, TTL);
